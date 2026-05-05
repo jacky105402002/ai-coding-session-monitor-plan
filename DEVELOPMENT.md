@@ -96,6 +96,14 @@ POC dashboard 目標會逐步加入：
 - 是否需要使用者回控/確認
 - active session 與負責工具
 
+目前清除資料先由 CLI 操作，並使用 device bearer token 保護：
+
+- `monitor clear`：清除目前 session。
+- `monitor clear --workspace`：清除目前專案/workspace 的 sessions。
+- `monitor clear --all`：清除目前 device 上傳的所有 sessions。
+
+暫時不在公開 dashboard 上放無驗證刪除按鈕，避免子網域公開後任何人都能清資料。
+
 ## 部署策略
 
 GitHub `main` 連動 Zeabur。每次完成 MVP 里程碑後推上 `main`，Zeabur 會自動 build 並重啟服務。

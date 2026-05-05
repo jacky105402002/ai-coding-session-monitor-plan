@@ -5,7 +5,8 @@ import { join } from "node:path";
 import {
   DashboardController,
   DevicesController,
-  SessionsController
+  SessionsController,
+  WorkspacesController
 } from "./app.controller.js";
 import { DatabaseInitService } from "./database-init.service.js";
 import { MonitorService } from "./monitor.service.js";
@@ -18,7 +19,12 @@ import { PrismaService } from "./prisma.service.js";
       exclude: ["/api/(.*)"]
     })
   ],
-  controllers: [DashboardController, DevicesController, SessionsController],
+  controllers: [
+    DashboardController,
+    DevicesController,
+    SessionsController,
+    WorkspacesController
+  ],
   providers: [PrismaService, DatabaseInitService, MonitorService]
 })
 export class AppModule {}

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { createHash } from "node:crypto";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -212,6 +212,43 @@ async function done() {
   console.log(`Session completed: ${current.sessionId}`);
 }
 
+async function clear() {
+  const config = await requireConfig();
+  const current = await readCurrentSession();
+  const headers = { authorization: `Bearer ${config.deviceToken}` };
+  let result;
+  let label;
+
+  if (process.argv.includes("--all")) {
+    result = await request(`/api/devices/${config.deviceId}/sessions`, {
+      method: "DELETE",
+      headers
+    });
+    label = "device";
+  } else if (process.argv.includes("--workspace")) {
+    if (!current?.workspaceId) {
+      throw new Error("Missing current workspace. Run `node .\\cli\\monitor.mjs start` first.");
+    }
+    result = await request(`/api/workspaces/${current.workspaceId}/sessions`, {
+      method: "DELETE",
+      headers
+    });
+    label = `workspace ${current.workspace?.name ?? current.workspaceId}`;
+  } else {
+    if (!current?.sessionId) {
+      throw new Error("Missing current session. Run `node .\\cli\\monitor.mjs start` first.");
+    }
+    result = await request(`/api/sessions/${current.sessionId}`, {
+      method: "DELETE",
+      headers
+    });
+    label = `session ${current.sessionId}`;
+  }
+
+  await rm(currentSessionPath, { force: true });
+  console.log(`Cleared ${result.deletedSessions ?? 0} session(s) from ${label}.`);
+}
+
 async function current() {
   const value = await readCurrentSession();
   if (!value) {
@@ -238,6 +275,9 @@ function help() {
   monitor output "assistant response preview"
   monitor error "error summary"
   monitor done "completion summary"
+  monitor clear
+  monitor clear --workspace
+  monitor clear --all
   monitor current
   monitor demo
 
@@ -245,6 +285,7 @@ PowerShell friendly:
   $env:MONITOR_API_URL="https://coding-session.zeabur.app"
   node .\\cli\\monitor.mjs start --title "My session"
   node .\\cli\\monitor.mjs input "Please fix the API"
+  node .\\cli\\monitor.mjs clear --workspace
 `);
 }
 
@@ -265,6 +306,8 @@ try {
     await error();
   } else if (command === "done") {
     await done();
+  } else if (command === "clear") {
+    await clear();
   } else if (command === "current") {
     await current();
   } else if (command === "demo") {

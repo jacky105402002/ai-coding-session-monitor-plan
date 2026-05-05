@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Req } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Req } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import type { Request } from "express";
 
@@ -43,6 +43,32 @@ export class DevicesController {
     const authDevice = await requireDevice(request, this.prisma);
     return this.monitor.heartbeat(body.deviceId, authDevice);
   }
+
+  @Delete(":deviceId/sessions")
+  @ApiBearerAuth()
+  async clearDeviceSessions(@Req() request: Request, @Param("deviceId") deviceId: string) {
+    const authDevice = await requireDevice(request, this.prisma);
+    return this.monitor.clearDeviceSessions(deviceId, authDevice);
+  }
+}
+
+@ApiTags("workspaces")
+@Controller("workspaces")
+export class WorkspacesController {
+  constructor(
+    private readonly monitor: MonitorService,
+    private readonly prisma: PrismaService
+  ) {}
+
+  @Delete(":workspaceId/sessions")
+  @ApiBearerAuth()
+  async clearWorkspaceSessions(
+    @Req() request: Request,
+    @Param("workspaceId") workspaceId: string
+  ) {
+    const authDevice = await requireDevice(request, this.prisma);
+    return this.monitor.clearWorkspaceSessions(workspaceId, authDevice);
+  }
 }
 
 @ApiTags("sessions")
@@ -80,5 +106,12 @@ export class SessionsController {
   ) {
     const authDevice = await requireDevice(request, this.prisma);
     return this.monitor.createMessage(sessionId, body, authDevice);
+  }
+
+  @Delete(":sessionId")
+  @ApiBearerAuth()
+  async deleteSession(@Req() request: Request, @Param("sessionId") sessionId: string) {
+    const authDevice = await requireDevice(request, this.prisma);
+    return this.monitor.deleteSession(sessionId, authDevice);
   }
 }

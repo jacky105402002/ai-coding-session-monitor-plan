@@ -207,6 +207,65 @@ export class MonitorService {
     return { messageId: message.id };
   }
 
+  async deleteSession(sessionId: string, authDevice: AuthDevice) {
+    const session = await this.prisma.session.findFirst({
+      where: { id: sessionId, deviceId: authDevice.id, userId: authDevice.userId },
+      select: { id: true }
+    });
+
+    if (!session) {
+      throw new NotFoundException("Session not found");
+    }
+
+    await this.prisma.message.deleteMany({ where: { sessionId } });
+    await this.prisma.session.delete({ where: { id: sessionId } });
+
+    return { deletedSessions: 1 };
+  }
+
+  async clearWorkspaceSessions(workspaceId: string, authDevice: AuthDevice) {
+    const workspace = await this.prisma.workspace.findFirst({
+      where: { id: workspaceId, deviceId: authDevice.id, userId: authDevice.userId },
+      select: { id: true }
+    });
+
+    if (!workspace) {
+      throw new NotFoundException("Workspace not found");
+    }
+
+    const sessions = await this.prisma.session.findMany({
+      where: { workspaceId, deviceId: authDevice.id, userId: authDevice.userId },
+      select: { id: true }
+    });
+    const sessionIds = sessions.map((session) => session.id);
+
+    if (sessionIds.length > 0) {
+      await this.prisma.message.deleteMany({ where: { sessionId: { in: sessionIds } } });
+      await this.prisma.session.deleteMany({ where: { id: { in: sessionIds } } });
+    }
+
+    return { deletedSessions: sessionIds.length };
+  }
+
+  async clearDeviceSessions(deviceId: string, authDevice: AuthDevice) {
+    if (deviceId !== authDevice.id) {
+      throw new NotFoundException("Device not found");
+    }
+
+    const sessions = await this.prisma.session.findMany({
+      where: { deviceId: authDevice.id, userId: authDevice.userId },
+      select: { id: true }
+    });
+    const sessionIds = sessions.map((session) => session.id);
+
+    if (sessionIds.length > 0) {
+      await this.prisma.message.deleteMany({ where: { sessionId: { in: sessionIds } } });
+      await this.prisma.session.deleteMany({ where: { id: { in: sessionIds } } });
+    }
+
+    return { deletedSessions: sessionIds.length };
+  }
+
   async getDashboardData(): Promise<DashboardData> {
     const devices = await this.prisma.device.findMany({
       orderBy: { lastSeenAt: "desc" },

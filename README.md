@@ -150,6 +150,14 @@ npm run monitor -- done "Ready for review"
 
 Sessions are grouped by workspace. The CLI uses the current folder name and a hash of `process.cwd()` so different project folders show as separate projects on the dashboard.
 
+Clear dashboard data owned by the registered local device:
+
+```bash
+npm run monitor -- clear              # clear current session
+npm run monitor -- clear --workspace  # clear sessions in the current project/workspace
+npm run monitor -- clear --all        # clear all sessions uploaded by this device
+```
+
 For production, point the CLI at the Zeabur service URL:
 
 ```bash
@@ -164,6 +172,7 @@ node .\cli\monitor.mjs init
 node .\cli\monitor.mjs start --title "Fix API build"
 node .\cli\monitor.mjs input "Please fix the API build error"
 node .\cli\monitor.mjs output "Build error fixed and tests passed"
+node .\cli\monitor.mjs clear --workspace
 node .\cli\monitor.mjs demo
 ```
 
@@ -271,6 +280,7 @@ Included:
 - PostgreSQL persistence
 - Local reporter CLI prototype
 - Project/workspace grouping by local folder
+- Token-protected CLI clearing for current session, current workspace, or current device
 
 Not included:
 
