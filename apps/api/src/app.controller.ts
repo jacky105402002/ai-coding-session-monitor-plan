@@ -76,6 +76,21 @@ export class DashboardController {
   }
 }
 
+@ApiTags("projects")
+@Controller("projects")
+export class ProjectsController {
+  constructor(
+    private readonly monitor: MonitorService,
+    private readonly prisma: PrismaService
+  ) {}
+
+  @Get()
+  async listProjects(@Req() request: Request) {
+    await requireAccount(request, this.prisma);
+    return { projects: await this.monitor.listProjectBindings() };
+  }
+}
+
 @ApiTags("admin")
 @Controller("admin")
 export class AdminController {

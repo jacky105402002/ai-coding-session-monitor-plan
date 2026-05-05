@@ -1,5 +1,5 @@
-import { Copy, LogOut, RefreshCw, Settings, TerminalSquare } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { Copy, LogOut, Plus, RefreshCw, Settings, TerminalSquare, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { DashboardData, SessionStatus } from "@monitor/shared";
 
 import { Badge } from "@/components/ui/badge";
@@ -154,16 +154,42 @@ function LoginPage({ onLogin }: { onLogin: (account: Account) => void }) {
 
 function DashboardPage({ account, onLogout }: { account: Account; onLogout: () => void }) {
   const [data, setData] = useState<DashboardData>({ devices: [] });
+  const [projects, setProjects] = useState<ProjectBinding[]>([]);
+  const [visibleProjectIds, setVisibleProjectIds] = useState<string[]>(() => {
+    const rawValue = window.localStorage.getItem("visibleProjectIds");
+    if (!rawValue) {
+      return [];
+    }
+
+    try {
+      const parsedValue = JSON.parse(rawValue);
+      return Array.isArray(parsedValue) ? parsedValue.filter((item) => typeof item === "string") : [];
+    } catch {
+      return [];
+    }
+  });
+  const [projectToAdd, setProjectToAdd] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<string | null>(null);
 
-  async function load() {
+  function saveVisibleProjects(nextIds: string[]) {
+    setVisibleProjectIds(nextIds);
+    window.localStorage.setItem("visibleProjectIds", JSON.stringify(nextIds));
+  }
+
+  const load = useCallback(async () => {
     try {
       setRefreshing(true);
       setError(null);
-      setData(await api<DashboardData>("/api/dashboard"));
+      const [dashboardResult, projectResult] = await Promise.all([
+        api<DashboardData>("/api/dashboard"),
+        api<{ projects: ProjectBinding[] }>("/api/projects")
+      ]);
+      setData(dashboardResult);
+      setProjects(projectResult.projects);
+
       setLastUpdatedAt(new Date().toISOString());
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Dashboard unavailable");
@@ -171,40 +197,79 @@ function DashboardPage({ account, onLogout }: { account: Account; onLogout: () =
       setLoading(false);
       setRefreshing(false);
     }
-  }
+  }, []);
 
   useEffect(() => {
     void load();
     const timer = window.setInterval(() => void load(), 5000);
     return () => window.clearInterval(timer);
-  }, []);
+  }, [load]);
+
+  const projectLookup = useMemo(
+    () => new Map(projects.map((project) => [project.projectId, project])),
+    [projects]
+  );
+  const visibleProjects = useMemo(
+    () =>
+      visibleProjectIds
+        .map((projectId) => projectLookup.get(projectId))
+        .filter((project): project is ProjectBinding => Boolean(project)),
+    [projectLookup, visibleProjectIds]
+  );
+  const projectViews = useMemo(
+    () =>
+      visibleProjects.map((project) => {
+        const devices = data.devices
+          .map((device) => ({
+            ...device,
+            workspaces: device.workspaces.filter(
+              (workspace) => workspace.name === project.projectId
+            )
+          }))
+          .filter((device) => device.workspaces.length > 0);
+        const sessions = devices.flatMap((device) =>
+          device.workspaces.flatMap((workspace) => workspace.sessions)
+        );
+        const active = sessions.filter((session) =>
+          ["ai_loading", "waiting_user", "idle"].includes(session.status)
+        ).length;
+
+        return { project, devices, sessions, active };
+      }),
+    [data.devices, visibleProjects]
+  );
 
   const counts = useMemo(() => {
-    const sessions = data.devices.reduce(
-      (deviceTotal, device) =>
-        deviceTotal +
-        device.workspaces.reduce(
-          (workspaceTotal, workspace) => workspaceTotal + workspace.sessions.length,
-          0
-        ),
+    const sessions = projectViews.reduce(
+      (total, projectView) => total + projectView.sessions.length,
       0
     );
-    const active = data.devices.reduce(
-      (deviceTotal, device) =>
-        deviceTotal +
-        device.workspaces.reduce(
-          (workspaceTotal, workspace) =>
-            workspaceTotal +
-            workspace.sessions.filter((session) =>
-              ["ai_loading", "waiting_user", "idle"].includes(session.status)
-            ).length,
-          0
-        ),
+    const active = projectViews.reduce(
+      (total, projectView) => total + projectView.active,
       0
     );
 
     return { sessions, active };
-  }, [data]);
+  }, [projectViews]);
+
+  const sessionGridClass =
+    visibleProjects.length <= 1
+      ? "grid grid-cols-1 gap-3"
+      : visibleProjects.length === 2
+        ? "grid grid-cols-2 gap-3 max-lg:grid-cols-1"
+        : "grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-3";
+
+  function addVisibleProject() {
+    if (!projectToAdd || visibleProjectIds.includes(projectToAdd)) {
+      return;
+    }
+    saveVisibleProjects([...visibleProjectIds, projectToAdd]);
+    setProjectToAdd("");
+  }
+
+  function hideVisibleProject(projectId: string) {
+    saveVisibleProjects(visibleProjectIds.filter((item) => item !== projectId));
+  }
 
   return (
     <Shell account={account} onLogout={onLogout}>
@@ -220,10 +285,64 @@ function DashboardPage({ account, onLogout }: { account: Account; onLogout: () =
         </Button>
       </div>
 
+      <Card className="mb-5 p-4">
+        <div className="mb-3 flex items-center justify-between gap-3 max-sm:flex-col max-sm:items-stretch">
+          <div>
+            <h2 className="text-lg font-black">Visible Projects</h2>
+            <p className="text-sm text-muted">
+              Admin controls connected projects. This dashboard controls what is shown.
+            </p>
+          </div>
+          <div className="flex gap-2 max-sm:grid max-sm:grid-cols-[1fr_auto]">
+            <select
+              className="h-10 min-w-56 rounded-md border border-border bg-card px-3"
+              onChange={(event) => setProjectToAdd(event.target.value)}
+              value={projectToAdd}
+            >
+              <option value="">Add connected project</option>
+              {projects
+                .filter((project) => !visibleProjectIds.includes(project.projectId))
+                .map((project) => (
+                  <option key={project.projectId} value={project.projectId}>
+                    {project.name} ({project.projectId})
+                  </option>
+                ))}
+            </select>
+            <Button disabled={!projectToAdd} onClick={addVisibleProject}>
+              <Plus size={16} />
+              Add
+            </Button>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {visibleProjects.length === 0 ? (
+            <p className="text-sm font-bold text-muted">
+              No project selected. Add a connected project to show it here.
+            </p>
+          ) : null}
+          {visibleProjects.map((project) => (
+            <span
+              className="inline-flex items-center gap-2 rounded-full bg-neutral-100 px-3 py-2 text-sm font-bold"
+              key={project.projectId}
+            >
+              {project.name}
+              <button
+                className="inline-flex size-6 items-center justify-center rounded-full hover:bg-neutral-200"
+                onClick={() => hideVisibleProject(project.projectId)}
+                title="Hide project"
+                type="button"
+              >
+                <X size={14} />
+              </button>
+            </span>
+          ))}
+        </div>
+      </Card>
+
       <section className="mb-5 grid grid-cols-3 gap-3 max-sm:grid-cols-1" aria-label="summary">
         <Card className="min-h-24 p-4">
-          <span className="text-sm font-bold text-muted">Devices</span>
-          <strong className="mt-2 block text-4xl leading-none">{data.devices.length}</strong>
+          <span className="text-sm font-bold text-muted">Visible Projects</span>
+          <strong className="mt-2 block text-4xl leading-none">{visibleProjects.length}</strong>
         </Card>
         <Card className="min-h-24 p-4">
           <span className="text-sm font-bold text-muted">Sessions</span>
@@ -243,78 +362,100 @@ function DashboardPage({ account, onLogout }: { account: Account; onLogout: () =
         </Card>
       ) : null}
 
-      {!error && !loading && data.devices.length === 0 ? (
+      {!error && !loading && projectViews.length === 0 ? (
         <Card className="grid min-h-64 place-items-center gap-2 p-7 text-center">
           <TerminalSquare size={34} />
-          <h2 className="text-2xl font-black">No sessions yet</h2>
+          <h2 className="text-2xl font-black">No visible projects</h2>
           <p className="max-w-xl text-muted">
-            Run monitor init and monitor demo to create the first session card.
+            Add a connected project above. Admin decides what can be connected; this page decides
+            what is displayed.
           </p>
         </Card>
       ) : null}
 
       <section className="grid gap-4">
-        {data.devices.map((device) => (
-          <Card className="p-5" key={device.id}>
-            <div className="mb-5 flex items-start justify-between gap-4 max-sm:flex-col">
+        {projectViews.map((projectView) => (
+          <Card className="p-5" key={projectView.project.projectId}>
+            <div className="mb-4 flex items-start justify-between gap-3">
               <div>
-                <h2 className="text-2xl font-black">{device.name}</h2>
-                <p className="mt-1 text-sm text-muted">
-                  {device.platform ?? "unknown"} · last seen {relativeTime(device.lastSeenAt)}
-                </p>
+                <h3 className="text-2xl font-black">{projectView.project.name}</h3>
+                <p className="mt-1 text-sm text-muted">{projectView.project.projectId}</p>
               </div>
-              <Badge tone={device.isOnline ? "green" : "neutral"}>
-                {device.isOnline ? "online" : "offline"}
-              </Badge>
+              <button
+                className="inline-flex size-9 items-center justify-center rounded-full bg-neutral-100 hover:bg-neutral-200"
+                onClick={() => hideVisibleProject(projectView.project.projectId)}
+                title="Hide project"
+                type="button"
+              >
+                <X size={18} />
+              </button>
             </div>
 
+            {projectView.devices.length === 0 ? (
+              <div className="grid min-h-40 place-items-center rounded-lg border border-border bg-neutral-50 p-5 text-center">
+                <div>
+                  <TerminalSquare className="mx-auto mb-3" size={30} />
+                  <h4 className="text-lg font-black">Waiting for monitor data</h4>
+                  <p className="mt-2 max-w-xl text-sm text-muted">
+                    Run the copied command for this project. New Codex sessions will appear here.
+                  </p>
+                </div>
+              </div>
+            ) : null}
+
             <div className="grid gap-4">
-              {device.workspaces.map((workspace) => (
-                <section className="border-t border-border pt-4" key={workspace.id}>
-                  <div className="mb-3 flex items-start justify-between gap-3">
-                    <h3 className="text-base font-black">{workspace.name}</h3>
-                    <Badge>{workspace.type}</Badge>
+              {projectView.devices.map((device) => (
+                <div className="grid gap-3" key={device.id}>
+                  <div className="flex items-center justify-between gap-4 max-sm:flex-col max-sm:items-start">
+                    <h4 className="text-lg font-black">{device.name}</h4>
+                    <Badge tone={device.isOnline ? "green" : "neutral"}>
+                      {device.isOnline ? "online" : "offline"}
+                    </Badge>
                   </div>
-                  <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-3">
-                    {workspace.sessions.map((session) => (
-                      <article
-                        className="min-h-64 rounded-lg border border-border bg-neutral-50 p-4"
-                        key={session.id}
-                      >
-                        <div className="mb-4 flex items-start justify-between gap-3 max-sm:flex-col">
-                          <div>
-                            <h4 className="text-base font-black leading-tight">{session.title}</h4>
-                            <p className="mt-1 text-sm text-muted">{session.tool}</p>
+                  {device.workspaces.map((workspace) => (
+                    <div className={sessionGridClass} key={workspace.id}>
+                      {workspace.sessions.map((session) => (
+                        <article
+                          className="min-h-64 rounded-lg border border-border bg-neutral-50 p-4"
+                          key={session.id}
+                        >
+                          <div className="mb-4 flex items-start justify-between gap-3 max-sm:flex-col">
+                            <div>
+                              <h4 className="text-base font-black leading-tight">
+                                {session.title}
+                              </h4>
+                              <p className="mt-1 text-sm text-muted">{session.tool}</p>
+                            </div>
+                            <Badge tone={statusTones[session.status]}>
+                              {statusLabels[session.status]}
+                            </Badge>
                           </div>
-                          <Badge tone={statusTones[session.status]}>
-                            {statusLabels[session.status]}
-                          </Badge>
-                        </div>
-                        <div className="grid gap-3">
-                          <div className="min-h-20 rounded-lg border border-border bg-card p-3">
-                            <span className="mb-1 block text-xs font-extrabold text-muted">
-                              Input
-                            </span>
-                            <p className="overflow-wrap-anywhere text-sm leading-relaxed">
-                              {session.lastInputPreview ?? "No input preview yet"}
-                            </p>
+                          <div className="grid gap-3">
+                            <div className="min-h-20 rounded-lg border border-border bg-card p-3">
+                              <span className="mb-1 block text-xs font-extrabold text-muted">
+                                Input
+                              </span>
+                              <p className="overflow-wrap-anywhere text-sm leading-relaxed">
+                                {session.lastInputPreview ?? "No input preview yet"}
+                              </p>
+                            </div>
+                            <div className="min-h-20 rounded-lg border border-border bg-card p-3">
+                              <span className="mb-1 block text-xs font-extrabold text-muted">
+                                Output
+                              </span>
+                              <p className="overflow-wrap-anywhere text-sm leading-relaxed">
+                                {session.lastOutputPreview ?? "No output preview yet"}
+                              </p>
+                            </div>
                           </div>
-                          <div className="min-h-20 rounded-lg border border-border bg-card p-3">
-                            <span className="mb-1 block text-xs font-extrabold text-muted">
-                              Output
-                            </span>
-                            <p className="overflow-wrap-anywhere text-sm leading-relaxed">
-                              {session.lastOutputPreview ?? "No output preview yet"}
-                            </p>
-                          </div>
-                        </div>
-                        <footer className="mt-3 text-sm text-muted">
-                          updated {relativeTime(session.lastMessageAt ?? session.updatedAt)}
-                        </footer>
-                      </article>
-                    ))}
-                  </div>
-                </section>
+                          <footer className="mt-3 text-sm text-muted">
+                            updated {relativeTime(session.lastMessageAt ?? session.updatedAt)}
+                          </footer>
+                        </article>
+                      ))}
+                    </div>
+                  ))}
+                </div>
               ))}
             </div>
           </Card>
@@ -528,6 +669,11 @@ export default function App() {
   }
 
   if (window.location.pathname === "/admin") {
+    if (account.role !== "admin") {
+      window.history.replaceState(null, "", "/");
+      return <DashboardPage account={account} onLogout={() => void logout()} />;
+    }
+
     return <AdminPage account={account} onLogout={() => void logout()} />;
   }
 

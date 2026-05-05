@@ -84,6 +84,13 @@ This prevents folders with the same display name from being merged accidentally.
 
 ## POC Project Management Direction
 
+Admin and dashboard responsibilities are intentionally split:
+
+- `/admin`: creates connected project bindings and copyable local monitor commands.
+- `/`: lets the signed-in user choose which connected projects are visible.
+- Hidden dashboard projects are stored in browser localStorage for this POC.
+- Deleting a project binding in admin removes it from the connected project list.
+
 The dashboard should gradually evolve into a project control panel that can show:
 
 - project health summary

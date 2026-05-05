@@ -5,6 +5,7 @@ import {
   AuthController,
   DashboardController,
   DevicesController,
+  ProjectsController,
   SessionsController,
   WorkspacesController
 } from "./app.controller.js";
@@ -20,6 +21,7 @@ import { PrismaService } from "./prisma.service.js";
     AuthController,
     AdminController,
     DevicesController,
+    ProjectsController,
     SessionsController,
     WorkspacesController
   ],
