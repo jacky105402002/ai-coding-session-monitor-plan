@@ -83,6 +83,19 @@ NODE_ENV=production
 - `POST /api/sessions/:sessionId/messages`
 - `GET /api/dashboard`
 
+## POC 專案管理方向
+
+不同專案會以 `Workspace` 分開顯示。Local reporter CLI 會用目前執行資料夾的名稱當 `workspace.name`，並用 `process.cwd()` hash 當 `workspace.pathHash`，避免同名資料夾混在一起。
+
+POC dashboard 目標會逐步加入：
+
+- 專案狀態總覽
+- 問題列表
+- AI 最新回覆
+- 錯誤摘要
+- 是否需要使用者回控/確認
+- active session 與負責工具
+
 ## 部署策略
 
 GitHub `main` 連動 Zeabur。每次完成 MVP 里程碑後推上 `main`，Zeabur 會自動 build 並重啟服務。

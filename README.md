@@ -139,6 +139,17 @@ Check heartbeat:
 npm run monitor -- status --api-url http://localhost:3000
 ```
 
+Start a real POC session from the current project folder:
+
+```bash
+npm run monitor -- start --title "Fix API build"
+npm run monitor -- input "Please fix the API build error"
+npm run monitor -- output "Build error fixed and tests passed"
+npm run monitor -- done "Ready for review"
+```
+
+Sessions are grouped by workspace. The CLI uses the current folder name and a hash of `process.cwd()` so different project folders show as separate projects on the dashboard.
+
 For production, point the CLI at the Zeabur service URL:
 
 ```bash
@@ -150,6 +161,9 @@ In PowerShell, if `--` is hard to type cleanly, use:
 ```powershell
 $env:MONITOR_API_URL="https://your-web-service.zeabur.app"
 node .\cli\monitor.mjs init
+node .\cli\monitor.mjs start --title "Fix API build"
+node .\cli\monitor.mjs input "Please fix the API build error"
+node .\cli\monitor.mjs output "Build error fixed and tests passed"
 node .\cli\monitor.mjs demo
 ```
 
@@ -256,6 +270,7 @@ Included:
 - Mobile-first dashboard
 - PostgreSQL persistence
 - Local reporter CLI prototype
+- Project/workspace grouping by local folder
 
 Not included:
 
@@ -265,3 +280,14 @@ Not included:
 - Billing
 - Push notifications
 - IDE or browser extensions
+
+## POC Project Management Direction
+
+The dashboard already groups sessions by device and workspace. The next POC project-management layer will add:
+
+- project-level health summary
+- open questions
+- latest AI reply
+- latest error
+- whether user control/approval is needed
+- session owner and active tool
