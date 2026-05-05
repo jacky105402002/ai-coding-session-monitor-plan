@@ -57,6 +57,8 @@ npm run build
 npm run start
 ```
 
+`npm run start` runs `node scripts/init-db.mjs` first, then starts Next.js. The database tables are created automatically when `DATABASE_URL` is available.
+
 The app listens on the port provided by the platform through `PORT`.
 
 ## Local Development
@@ -71,6 +73,7 @@ Then run:
 
 ```bash
 npm install
+npm run db:init
 npm run dev
 ```
 

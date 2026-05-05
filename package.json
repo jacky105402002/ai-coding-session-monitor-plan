@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "node scripts/init-db.mjs && next start",
+    "db:init": "node scripts/init-db.mjs",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "monitor": "node cli/monitor.mjs"
