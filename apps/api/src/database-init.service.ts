@@ -1,7 +1,7 @@
 import { Injectable, OnModuleInit } from "@nestjs/common";
 
 import { PrismaService } from "./prisma.service.js";
-import { schemaSql } from "./schema-sql.js";
+import { schemaStatements } from "./schema-sql.js";
 
 @Injectable()
 export class DatabaseInitService implements OnModuleInit {
@@ -12,7 +12,9 @@ export class DatabaseInitService implements OnModuleInit {
       throw new Error("DATABASE_URL is required before starting the service.");
     }
 
-    await this.prisma.$executeRawUnsafe(schemaSql);
+    for (const statement of schemaStatements) {
+      await this.prisma.$executeRawUnsafe(statement);
+    }
     console.log("Database schema is ready.");
   }
 }

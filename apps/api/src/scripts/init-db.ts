@@ -1,6 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 
-import { schemaSql } from "../schema-sql.js";
+import { schemaStatements } from "../schema-sql.js";
 
 if (!process.env.DATABASE_URL) {
   console.error("DATABASE_URL is required before starting the service.");
@@ -10,7 +10,9 @@ if (!process.env.DATABASE_URL) {
 const prisma = new PrismaClient();
 
 try {
-  await prisma.$executeRawUnsafe(schemaSql);
+  for (const statement of schemaStatements) {
+    await prisma.$executeRawUnsafe(statement);
+  }
   console.log("Database schema is ready.");
 } finally {
   await prisma.$disconnect();

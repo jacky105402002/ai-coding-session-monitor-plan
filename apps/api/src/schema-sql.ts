@@ -1,12 +1,12 @@
-export const schemaSql = `
-  create table if not exists users (
+export const schemaStatements = [
+  `create table if not exists users (
     id text primary key,
     display_name text not null,
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now()
-  );
+  )`,
 
-  create table if not exists devices (
+  `create table if not exists devices (
     id text primary key,
     user_id text not null references users(id) on delete cascade,
     name text not null,
@@ -15,9 +15,9 @@ export const schemaSql = `
     last_seen_at timestamptz not null default now(),
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now()
-  );
+  )`,
 
-  create table if not exists workspaces (
+  `create table if not exists workspaces (
     id text primary key,
     user_id text not null references users(id) on delete cascade,
     device_id text not null references devices(id) on delete cascade,
@@ -28,9 +28,9 @@ export const schemaSql = `
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now(),
     unique (device_id, path_hash_key, name)
-  );
+  )`,
 
-  create table if not exists sessions (
+  `create table if not exists sessions (
     id text primary key,
     user_id text not null references users(id) on delete cascade,
     device_id text not null references devices(id) on delete cascade,
@@ -45,19 +45,19 @@ export const schemaSql = `
     ended_at timestamptz,
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now()
-  );
+  )`,
 
-  create table if not exists messages (
+  `create table if not exists messages (
     id text primary key,
     user_id text not null references users(id) on delete cascade,
     session_id text not null references sessions(id) on delete cascade,
     role text not null check (role in ('user', 'assistant', 'system', 'status')),
     content text not null,
     created_at timestamptz not null default now()
-  );
+  )`,
 
-  create index if not exists idx_devices_user_id on devices(user_id);
-  create index if not exists idx_workspaces_device_id on workspaces(device_id);
-  create index if not exists idx_sessions_workspace_id on sessions(workspace_id);
-  create index if not exists idx_messages_session_id on messages(session_id);
-`;
+  `create index if not exists idx_devices_user_id on devices(user_id)`,
+  `create index if not exists idx_workspaces_device_id on workspaces(device_id)`,
+  `create index if not exists idx_sessions_workspace_id on sessions(workspace_id)`,
+  `create index if not exists idx_messages_session_id on messages(session_id)`
+];
