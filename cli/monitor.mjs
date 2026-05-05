@@ -51,6 +51,14 @@ function preview(value, maxLength = 300) {
   return normalized.length > maxLength ? `${normalized.slice(-maxLength + 3)}...` : normalized;
 }
 
+function transcriptPreview(value, maxLength = 12000) {
+  const normalized = value.trim();
+  if (!normalized) {
+    return "";
+  }
+  return normalized.length > maxLength ? normalized.slice(-maxLength) : normalized;
+}
+
 async function readJson(path) {
   try {
     return JSON.parse(await readFile(path, "utf8"));
@@ -298,19 +306,22 @@ async function runCodex() {
   const codexArgs = commandArgsAfter("codex");
   const title = argValue("--title", `${workspacePayload().name} Codex`);
   const codexBin = process.env.CODEX_BIN || "codex";
+  const commandText = codexArgs.length
+    ? `${codexBin} ${codexArgs.join(" ")}`
+    : `${codexBin} interactive session`;
 
   await createSession({ title, tool: "codex" });
   await postMessage(
     "status",
-    `Codex CLI started in ${process.cwd()}${codexArgs.length ? ` with args: ${codexArgs.join(" ")}` : ""}`
+    `Codex CLI started in ${process.cwd()} with command: ${commandText}`
   );
+  await postMessage("user", commandText);
   await updateStatus("ai_loading", {
-    lastInputPreview: codexArgs.length
-      ? `codex ${codexArgs.join(" ")}`
-      : "codex interactive session started"
+    lastInputPreview: commandText,
+    lastOutputPreview: "Codex CLI is running"
   });
 
-  console.log(`Launching ${codexBin}${codexArgs.length ? ` ${codexArgs.join(" ")}` : ""}`);
+  console.log(`Launching ${commandText}`);
 
   let latestOutput = "";
   let latestError = "";
@@ -328,9 +339,7 @@ async function runCodex() {
     try {
       await heartbeat();
       await updateStatus("ai_loading", {
-        lastInputPreview: codexArgs.length
-          ? `codex ${codexArgs.join(" ")}`
-          : "codex interactive session running",
+        lastInputPreview: commandText,
         lastOutputPreview: preview(latestError || latestOutput || "Codex CLI is running")
       });
     } catch (syncError) {
@@ -351,14 +360,14 @@ async function runCodex() {
 
     child.stdout?.on("data", (chunk) => {
       const text = chunk.toString();
-      latestOutput = `${latestOutput}${text}`.slice(-2000);
+      latestOutput = `${latestOutput}${text}`.slice(-12000);
       process.stdout.write(chunk);
       void syncProgress();
     });
 
     child.stderr?.on("data", (chunk) => {
       const text = chunk.toString();
-      latestError = `${latestError}${text}`.slice(-2000);
+      latestError = `${latestError}${text}`.slice(-12000);
       process.stderr.write(chunk);
       void syncProgress();
     });
@@ -374,13 +383,21 @@ async function runCodex() {
   });
 
   if (exitCode === 0) {
-    const summary = preview(latestOutput) || "Codex CLI exited successfully.";
+    const fullOutput = transcriptPreview(latestOutput);
+    const summary = preview(fullOutput) || "Codex CLI exited successfully.";
+    if (fullOutput) {
+      await postMessage("assistant", fullOutput);
+    }
     await postMessage("status", "Codex CLI exited successfully.");
     await updateStatus("done", { lastOutputPreview: summary });
     console.log("Codex session completed.");
   } else {
-    const summary = preview(latestError || latestOutput) || `Codex CLI exited with code ${exitCode}.`;
-    await postMessage("status", summary);
+    const fullError = transcriptPreview(latestError || latestOutput);
+    const summary = preview(fullError) || `Codex CLI exited with code ${exitCode}.`;
+    await postMessage("status", `Codex CLI exited with code ${exitCode}.`);
+    if (fullError) {
+      await postMessage("assistant", fullError);
+    }
     await updateStatus("error", { lastOutputPreview: summary });
     console.error(summary);
     process.exitCode = Number(exitCode);

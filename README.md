@@ -205,6 +205,14 @@ npm run monitor -- codex --title "Explain repo" -- --help
 
 The wrapper keeps Codex interactive in your terminal. The dashboard receives session start, running, done, and error status updates.
 While Codex is running, the wrapper sends heartbeat/status updates and a short stdout/stderr preview.
+When Codex exits, the wrapper stores the command and final stdout/stderr transcript as session messages so `Show Messages` can verify what happened.
+
+Quick production smoke test:
+
+```powershell
+$env:MONITOR_API_URL="https://coding-session.zeabur.app"
+node D:\code\codex\ai-coding-session-monitor-plan\cli\monitor.mjs codex --workspace ai-session-monitor --title "Codex wrapper smoke test" -- --help
+```
 
 For production, point the CLI at the Zeabur service URL:
 
