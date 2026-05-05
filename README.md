@@ -4,12 +4,29 @@ Mobile-friendly dashboard for monitoring local AI coding CLI sessions.
 
 This repository is prepared for GitHub -> Zeabur deployment as a Next.js service with PostgreSQL.
 
-## Stack
+## Target MVP Stack
 
-- Next.js App Router
+Frontend:
+
+- React
+- Vite
 - TypeScript
+- Tailwind CSS
+- shadcn/ui
+
+Backend:
+
+- NestJS
+- TypeScript
+- Swagger
+- Prisma
+
+Data and deployment:
+
 - PostgreSQL
-- Node.js reporter CLI
+- Zeabur for MVP, POC, personal projects, and early deployments
+
+The current first version is a deployable baseline. The formal MVP will be organized around the stack above. See `DEVELOPMENT.md`.
 
 ## Zeabur Environment Variables
 
@@ -32,7 +49,7 @@ Use `DATABASE_SSL=true` only if the database endpoint requires SSL.
 
 ## Build and Start
 
-Zeabur can use the native Node.js/Next.js deployment flow:
+The current baseline can use the native Node.js deployment flow:
 
 ```bash
 npm install
