@@ -22,6 +22,13 @@ type ProjectBinding = {
   description?: string | null;
 };
 
+type SessionMessage = {
+  id: string;
+  role: "user" | "assistant" | "system" | "status";
+  content: string;
+  createdAt: string;
+};
+
 const statusLabels: Record<SessionStatus, string> = {
   idle: "Idle",
   ai_loading: "AI Loading",
@@ -173,6 +180,14 @@ function DashboardPage({ account, onLogout }: { account: Account; onLogout: () =
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<string | null>(null);
+  const [expandedSessionIds, setExpandedSessionIds] = useState<string[]>([]);
+  const [messagesBySessionId, setMessagesBySessionId] = useState<
+    Record<string, SessionMessage[]>
+  >({});
+  const [messageLoadingSessionId, setMessageLoadingSessionId] = useState<string | null>(null);
+  const [messageErrorBySessionId, setMessageErrorBySessionId] = useState<Record<string, string>>(
+    {}
+  );
 
   function saveVisibleProjects(nextIds: string[]) {
     setVisibleProjectIds(nextIds);
@@ -269,6 +284,38 @@ function DashboardPage({ account, onLogout }: { account: Account; onLogout: () =
 
   function hideVisibleProject(projectId: string) {
     saveVisibleProjects(visibleProjectIds.filter((item) => item !== projectId));
+  }
+
+  async function toggleSessionMessages(sessionId: string) {
+    if (expandedSessionIds.includes(sessionId)) {
+      setExpandedSessionIds(expandedSessionIds.filter((item) => item !== sessionId));
+      return;
+    }
+
+    setExpandedSessionIds([...expandedSessionIds, sessionId]);
+
+    if (messagesBySessionId[sessionId]) {
+      return;
+    }
+
+    try {
+      setMessageLoadingSessionId(sessionId);
+      setMessageErrorBySessionId((current) => ({ ...current, [sessionId]: "" }));
+      const result = await api<{ messages: SessionMessage[] }>(
+        `/api/sessions/${encodeURIComponent(sessionId)}/messages`
+      );
+      setMessagesBySessionId((current) => ({
+        ...current,
+        [sessionId]: result.messages
+      }));
+    } catch (loadError) {
+      setMessageErrorBySessionId((current) => ({
+        ...current,
+        [sessionId]: loadError instanceof Error ? loadError.message : "Messages unavailable"
+      }));
+    } finally {
+      setMessageLoadingSessionId(null);
+    }
   }
 
   return (
@@ -451,6 +498,59 @@ function DashboardPage({ account, onLogout }: { account: Account; onLogout: () =
                           <footer className="mt-3 text-sm text-muted">
                             updated {relativeTime(session.lastMessageAt ?? session.updatedAt)}
                           </footer>
+                          <div className="mt-3 border-t border-border pt-3">
+                            <Button
+                              className="w-full justify-center"
+                              onClick={() => void toggleSessionMessages(session.id)}
+                            >
+                              {expandedSessionIds.includes(session.id) ? "Hide" : "Show"} Messages
+                            </Button>
+                            {expandedSessionIds.includes(session.id) ? (
+                              <div className="mt-3 grid gap-2">
+                                {messageLoadingSessionId === session.id ? (
+                                  <p className="text-sm font-bold text-muted">
+                                    Loading messages...
+                                  </p>
+                                ) : null}
+                                {messageErrorBySessionId[session.id] ? (
+                                  <p className="text-sm font-bold text-red-700">
+                                    {messageErrorBySessionId[session.id]}
+                                  </p>
+                                ) : null}
+                                {messagesBySessionId[session.id]?.length === 0 ? (
+                                  <p className="text-sm font-bold text-muted">
+                                    No messages stored for this session yet.
+                                  </p>
+                                ) : null}
+                                {messagesBySessionId[session.id]?.map((message) => (
+                                  <div
+                                    className="rounded-lg border border-border bg-card p-3"
+                                    key={message.id}
+                                  >
+                                    <div className="mb-2 flex items-center justify-between gap-3">
+                                      <Badge
+                                        tone={
+                                          message.role === "assistant"
+                                            ? "blue"
+                                            : message.role === "user"
+                                              ? "amber"
+                                              : "neutral"
+                                        }
+                                      >
+                                        {message.role}
+                                      </Badge>
+                                      <span className="text-xs font-bold text-muted">
+                                        {relativeTime(message.createdAt)}
+                                      </span>
+                                    </div>
+                                    <p className="whitespace-pre-wrap overflow-wrap-anywhere text-sm leading-relaxed">
+                                      {message.content}
+                                    </p>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : null}
+                          </div>
                         </article>
                       ))}
                     </div>

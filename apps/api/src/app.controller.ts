@@ -203,6 +203,12 @@ export class SessionsController {
     return this.monitor.createSession(body, authDevice);
   }
 
+  @Get(":sessionId/messages")
+  async listMessages(@Req() request: Request, @Param("sessionId") sessionId: string) {
+    await requireAccount(request, this.prisma);
+    return { messages: await this.monitor.listSessionMessages(sessionId) };
+  }
+
   @Patch(":sessionId/status")
   @ApiBearerAuth()
   async updateStatus(

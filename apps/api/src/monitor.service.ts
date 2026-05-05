@@ -224,6 +224,28 @@ export class MonitorService {
     return { deletedSessions: 1 };
   }
 
+  async listSessionMessages(sessionId: string) {
+    const session = await this.prisma.session.findUnique({
+      where: { id: sessionId },
+      select: { id: true }
+    });
+
+    if (!session) {
+      throw new NotFoundException("Session not found");
+    }
+
+    return this.prisma.message.findMany({
+      where: { sessionId },
+      orderBy: { createdAt: "asc" },
+      select: {
+        id: true,
+        role: true,
+        content: true,
+        createdAt: true
+      }
+    });
+  }
+
   async clearWorkspaceSessions(workspaceId: string, authDevice: AuthDevice) {
     const workspace = await this.prisma.workspace.findFirst({
       where: { id: workspaceId, deviceId: authDevice.id, userId: authDevice.userId },
