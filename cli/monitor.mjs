@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { createHash } from "node:crypto";
+import { spawn } from "node:child_process";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -17,6 +18,25 @@ function argValue(name, fallback) {
 
 function positionalText() {
   return process.argv.slice(3).filter((item) => !item.startsWith("--")).join(" ").trim();
+}
+
+function commandArgsAfter(commandName) {
+  const startIndex = process.argv.indexOf(commandName) + 1;
+  const args = process.argv.slice(startIndex);
+  const separatorIndex = args.indexOf("--");
+  const rawArgs = separatorIndex >= 0 ? args.slice(separatorIndex + 1) : args;
+  const filtered = [];
+
+  for (let index = 0; index < rawArgs.length; index += 1) {
+    const item = rawArgs[index];
+    if (["--api-url", "--title", "--workspace"].includes(item)) {
+      index += 1;
+      continue;
+    }
+    filtered.push(item);
+  }
+
+  return filtered;
 }
 
 function apiUrl() {
@@ -266,6 +286,49 @@ async function demo() {
   await output("Dashboard MVP completed: API, session cards, status badge, and Zeabur PostgreSQL are connected.");
 }
 
+async function runCodex() {
+  const codexArgs = commandArgsAfter("codex");
+  const title = argValue("--title", `${workspacePayload().name} Codex`);
+  const codexBin = process.env.CODEX_BIN || "codex";
+
+  await createSession({ title, tool: "codex" });
+  await postMessage(
+    "status",
+    `Codex CLI started in ${process.cwd()}${codexArgs.length ? ` with args: ${codexArgs.join(" ")}` : ""}`
+  );
+  await updateStatus("ai_loading", {
+    lastInputPreview: codexArgs.length
+      ? `codex ${codexArgs.join(" ")}`
+      : "codex interactive session started"
+  });
+
+  console.log(`Launching ${codexBin}${codexArgs.length ? ` ${codexArgs.join(" ")}` : ""}`);
+
+  const exitCode = await new Promise((resolve, reject) => {
+    const child = spawn(codexBin, codexArgs, {
+      cwd: process.cwd(),
+      env: process.env,
+      shell: process.platform === "win32",
+      stdio: "inherit"
+    });
+
+    child.on("error", reject);
+    child.on("close", (code) => resolve(code ?? 0));
+  });
+
+  if (exitCode === 0) {
+    await postMessage("status", "Codex CLI exited successfully.");
+    await updateStatus("done", { lastOutputPreview: "Codex CLI exited successfully." });
+    console.log("Codex session completed.");
+  } else {
+    const summary = `Codex CLI exited with code ${exitCode}.`;
+    await postMessage("status", summary);
+    await updateStatus("error", { lastOutputPreview: summary });
+    console.error(summary);
+    process.exitCode = Number(exitCode);
+  }
+}
+
 function help() {
   console.log(`Usage:
   monitor init [--api-url http://localhost:3000] [--display-name Jacky] [--device-name "Win11 Desktop"]
@@ -280,12 +343,14 @@ function help() {
   monitor clear --all
   monitor current
   monitor demo
+  monitor codex [--title "Feature work"] [--workspace project-id] [-- codex args]
 
 PowerShell friendly:
   $env:MONITOR_API_URL="https://coding-session.zeabur.app"
   node .\\cli\\monitor.mjs start --title "My session"
   node .\\cli\\monitor.mjs input "Please fix the API"
   node .\\cli\\monitor.mjs clear --workspace
+  node .\\cli\\monitor.mjs codex --title "Auth work"
 `);
 }
 
@@ -312,6 +377,8 @@ try {
     await current();
   } else if (command === "demo") {
     await demo();
+  } else if (command === "codex") {
+    await runCodex();
   } else {
     help();
   }

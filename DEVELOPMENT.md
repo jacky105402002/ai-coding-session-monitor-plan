@@ -93,6 +93,20 @@ The dashboard should gradually evolve into a project control panel that can show
 - whether user control/approval is needed
 - active session and active AI tool
 
+## Codex Wrapper POC
+
+`monitor codex` is the first Codex CLI wrapper.
+
+Current behavior:
+
+- creates a session for the current project/workspace
+- marks the session as `ai_loading`
+- launches the local `codex` binary interactively
+- marks the session as `done` when Codex exits with code 0
+- marks the session as `error` when Codex exits with a non-zero code
+
+It does not capture full terminal streams yet. Future versions can add structured input/output capture, SSE/WebSocket updates, and user-control-needed signals.
+
 ## Clear Data
 
 Data clearing is token-protected through the CLI:

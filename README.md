@@ -183,6 +183,20 @@ npm run monitor -- clear --workspace  # clear sessions in the current project/wo
 npm run monitor -- clear --all        # clear all sessions uploaded by this device
 ```
 
+Wrap a Codex CLI session from the current project folder:
+
+```bash
+npm run monitor -- codex --title "Implement auth flow"
+```
+
+Power users can pass arguments to Codex after `--`:
+
+```bash
+npm run monitor -- codex --title "Explain repo" -- --help
+```
+
+The wrapper keeps Codex interactive in your terminal. The dashboard receives session start, running, done, and error status updates.
+
 For production, point the CLI at the Zeabur service URL:
 
 ```bash
@@ -198,6 +212,7 @@ node .\cli\monitor.mjs start --title "Fix API build"
 node .\cli\monitor.mjs input "Please fix the API build error"
 node .\cli\monitor.mjs output "Build error fixed and tests passed"
 node .\cli\monitor.mjs clear --workspace
+node .\cli\monitor.mjs codex --title "Implement auth flow"
 node .\cli\monitor.mjs demo
 ```
 
