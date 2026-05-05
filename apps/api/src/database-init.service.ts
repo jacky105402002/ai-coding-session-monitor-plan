@@ -2,10 +2,14 @@ import { Injectable, OnModuleInit } from "@nestjs/common";
 
 import { PrismaService } from "./prisma.service.js";
 import { schemaStatements } from "./schema-sql.js";
+import { AccountService } from "./account.service.js";
 
 @Injectable()
 export class DatabaseInitService implements OnModuleInit {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly accounts: AccountService
+  ) {}
 
   async onModuleInit() {
     if (!process.env.DATABASE_URL) {
@@ -16,5 +20,6 @@ export class DatabaseInitService implements OnModuleInit {
       await this.prisma.$executeRawUnsafe(statement);
     }
     console.log("Database schema is ready.");
+    await this.accounts.seedDefaultAccounts();
   }
 }

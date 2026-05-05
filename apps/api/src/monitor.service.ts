@@ -266,6 +266,34 @@ export class MonitorService {
     return { deletedSessions: sessionIds.length };
   }
 
+  async listProjectBindings() {
+    return this.prisma.projectBinding.findMany({
+      orderBy: { createdAt: "desc" }
+    });
+  }
+
+  async createProjectBinding(
+    input: { projectId?: string; name?: string; description?: string },
+    accountId: string
+  ) {
+    const projectId = input.projectId?.trim();
+    const name = input.name?.trim();
+    if (!projectId || !name) {
+      throw new Error("Project ID and name are required");
+    }
+
+    return this.prisma.projectBinding.create({
+      data: {
+        id: makeId("prj"),
+        projectId,
+        name,
+        workspaceName: projectId,
+        description: input.description?.trim() || null,
+        createdBy: accountId
+      }
+    });
+  }
+
   async getDashboardData(): Promise<DashboardData> {
     const devices = await this.prisma.device.findMany({
       orderBy: { lastSeenAt: "desc" },

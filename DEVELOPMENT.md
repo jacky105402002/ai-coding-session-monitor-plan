@@ -1,115 +1,104 @@
-# 開發與部署規格
+# Development Spec
 
-這份文件定義 AI Coding Session Monitor 的正式 MVP 技術棧。目前 repo 已整理為 `apps/web`、`apps/api`、`packages/shared` 的 monorepo 形狀，Zeabur 上仍以單一 Node.js service 部署，由 NestJS 同時提供 API 與前端靜態檔。
+This project is the POC/MVP for AI Coding Session Monitor.
 
-## 前端
+## Stack
+
+Frontend:
 
 - React
 - Vite
 - TypeScript
 - Tailwind CSS
-- shadcn/ui
+- shadcn/ui-style local components
 
-前端定位為 mobile-first dashboard，用來顯示 device、workspace、AI coding session 狀態、latest input preview、latest output preview 與 last seen time。
-
-## 後端
+Backend:
 
 - NestJS
 - TypeScript
 - Swagger
 - Prisma
 
-後端定位為 API-first 架構，適合 AI SaaS 產品逐步擴充。API 需要保留清楚的 OpenAPI/Swagger 文件，讓 local reporter CLI、未來 mobile app、第三方 integration 都能穩定串接。
+Data and deployment:
 
-## 資料庫與資料層
+- PostgreSQL
+- Zeabur for MVP, POC, personal projects, and early deployments
 
-- PostgreSQL 為主要資料庫。
-- Prisma 只放在 TypeScript 後端，例如 NestJS。
-- 前端不直接接資料庫。
-- 資料庫連線字串必須放在部署平台環境變數，不得提交到 GitHub。
+## Project Structure
 
-MVP 的主要資料模型：
+```text
+.
+├─ apps/
+│  ├─ web/                 # React + Vite + TypeScript + Tailwind
+│  └─ api/                 # NestJS + Swagger + Prisma
+├─ packages/
+│  └─ shared/              # shared dashboard/API types
+├─ cli/                    # local reporter CLI
+├─ docs/
+├─ DEVELOPMENT.md
+└─ README.md
+```
 
-- User
-- Device
-- Workspace
-- Session
-- Message
+## Deployment
 
-## 環境與部署
+GitHub `main` is connected to Zeabur.
 
-- Zeabur 用於 MVP、POC、個人專案與早期部署。
-- GitHub 作為 Zeabur 自動部署來源。
-- PostgreSQL 使用 Zeabur PostgreSQL service。
-- Web/API service 透過 Zeabur environment variables 讀取 `DATABASE_URL`。
+- `npm run build`: Prisma generate, Vite build, NestJS build.
+- `npm run start`: initialize PostgreSQL schema, then start NestJS.
+- NestJS serves `/api/*`, `/api/docs`, and `apps/web/dist`.
 
-## Zeabur 環境變數
-
-正式部署至少需要：
+Required Zeabur variable:
 
 ```text
 DATABASE_URL=postgresql://USER:PASSWORD@HOST:PORT/DATABASE
 ```
 
-可選：
+Recommended:
 
 ```text
-DATABASE_SSL=true
+AUTH_SECRET=replace-with-a-long-random-string
 NODE_ENV=production
 ```
 
-## 專案結構
+## Login/Admin POC
 
-```text
-.
-├─ apps/
-│  ├─ web/                 # React + Vite + TypeScript + Tailwind + shadcn/ui
-│  └─ api/                 # NestJS + TypeScript + Swagger + Prisma
-├─ packages/
-│  └─ shared/              # shared types, API contracts, constants
-├─ cli/                    # local reporter CLI
-├─ docs/
-│  └─ product-brief.md
-├─ DEVELOPMENT.md
-└─ README.md
-```
+- `/login` is the shared login page for dashboard and admin users.
+- `/` is the protected dashboard.
+- `/admin` is the protected admin console.
+- The default admin account is seeded on startup into `app_accounts`.
+- Passwords are stored as PBKDF2 hashes, not plaintext.
+- `AUTH_SECRET` signs login cookies. Set it in Zeabur for production.
+- Admin users can create frontend accounts and project bindings.
+- Project bindings provide copyable CLI commands so a local folder can report as a configured project id.
 
-## MVP API 範圍
+## Project Grouping
 
-- `POST /api/devices/register`
-- `POST /api/devices/heartbeat`
-- `POST /api/sessions`
-- `PATCH /api/sessions/:sessionId/status`
-- `POST /api/sessions/:sessionId/messages`
-- `GET /api/dashboard`
+Different local projects are separated by `Workspace`.
 
-## POC 專案管理方向
+The CLI uses:
 
-不同專案會以 `Workspace` 分開顯示。Local reporter CLI 會用目前執行資料夾的名稱當 `workspace.name`，並用 `process.cwd()` hash 當 `workspace.pathHash`，避免同名資料夾混在一起。
+- `workspace.name`: the current folder name or a configured project id.
+- `workspace.pathHash`: a hash of `process.cwd()`.
 
-POC dashboard 目標會逐步加入：
+This prevents folders with the same display name from being merged accidentally.
 
-- 專案狀態總覽
-- 問題列表
-- AI 最新回覆
-- 錯誤摘要
-- 是否需要使用者回控/確認
-- active session 與負責工具
+## POC Project Management Direction
 
-目前清除資料先由 CLI 操作，並使用 device bearer token 保護：
+The dashboard should gradually evolve into a project control panel that can show:
 
-- `monitor clear`：清除目前 session。
-- `monitor clear --workspace`：清除目前專案/workspace 的 sessions。
-- `monitor clear --all`：清除目前 device 上傳的所有 sessions。
+- project health summary
+- open questions
+- latest AI reply
+- latest error
+- whether user control/approval is needed
+- active session and active AI tool
 
-暫時不在公開 dashboard 上放無驗證刪除按鈕，避免子網域公開後任何人都能清資料。
+## Clear Data
 
-## 部署策略
+Data clearing is token-protected through the CLI:
 
-GitHub `main` 連動 Zeabur。每次完成 MVP 里程碑後推上 `main`，Zeabur 會自動 build 並重啟服務。
+- `monitor clear`: clear current session.
+- `monitor clear --workspace`: clear sessions in the current project/workspace.
+- `monitor clear --all`: clear all sessions uploaded by the current device.
 
-目前部署仍採單一服務：
-
-- `npm run build`：Prisma generate、Vite build、NestJS build。
-- `npm run start`：初始化 PostgreSQL schema，啟動 NestJS。
-- NestJS 提供 `/api/*`、`/api/docs`，並 serve `apps/web/dist`。
+Do not expose unauthenticated destructive actions on the public dashboard.

@@ -56,8 +56,30 @@ export const schemaStatements = [
     created_at timestamptz not null default now()
   )`,
 
+  `create table if not exists app_accounts (
+    id text primary key,
+    username text not null unique,
+    password_hash text not null,
+    role text not null check (role in ('admin', 'user')),
+    display_name text,
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now()
+  )`,
+
+  `create table if not exists project_bindings (
+    id text primary key,
+    project_id text not null unique,
+    name text not null,
+    workspace_name text not null,
+    description text,
+    created_by text,
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now()
+  )`,
+
   `create index if not exists idx_devices_user_id on devices(user_id)`,
   `create index if not exists idx_workspaces_device_id on workspaces(device_id)`,
   `create index if not exists idx_sessions_workspace_id on sessions(workspace_id)`,
-  `create index if not exists idx_messages_session_id on messages(session_id)`
+  `create index if not exists idx_messages_session_id on messages(session_id)`,
+  `create index if not exists idx_project_bindings_project_id on project_bindings(project_id)`
 ];

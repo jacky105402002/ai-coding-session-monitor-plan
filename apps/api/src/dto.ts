@@ -59,3 +59,36 @@ export class CreateMessageDto {
   @ApiProperty({ example: "Dashboard implementation completed." })
   content!: string;
 }
+
+export class LoginDto {
+  @ApiProperty({ example: "jacky105402002" })
+  username!: string;
+
+  @ApiProperty({ example: "password" })
+  password!: string;
+}
+
+export class CreateAccountDto {
+  @ApiProperty({ example: "frontend-user" })
+  username!: string;
+
+  @ApiProperty({ example: "change-me-please" })
+  password!: string;
+
+  @ApiProperty({ example: "user", enum: ["admin", "user"] })
+  role?: string;
+
+  @ApiPropertyOptional({ example: "Frontend User" })
+  displayName?: string;
+}
+
+export class CreateProjectBindingDto {
+  @ApiProperty({ example: "my-project" })
+  projectId!: string;
+
+  @ApiProperty({ example: "My Project" })
+  name!: string;
+
+  @ApiPropertyOptional({ example: "Project dashboard binding" })
+  description?: string;
+}

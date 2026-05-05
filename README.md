@@ -55,6 +55,7 @@ Optional:
 
 ```text
 MONITOR_API_URL=https://your-web-service.zeabur.app
+AUTH_SECRET=replace-with-a-long-random-string
 ```
 
 ## Build and Start
@@ -118,6 +119,30 @@ Swagger docs are available at:
 ```text
 http://localhost:3000/api/docs
 ```
+
+## Login and Admin
+
+The public dashboard requires login:
+
+```text
+https://your-web-service.zeabur.app/login
+```
+
+Admin console:
+
+```text
+https://your-web-service.zeabur.app/admin
+```
+
+The first admin account is seeded automatically during service startup. The seeded admin account can access both the frontend dashboard and the admin console.
+
+Admin console features:
+
+- create frontend user accounts
+- create project bindings
+- copy project binding commands for local project folders
+
+Do not commit plaintext passwords. For production, set a strong `AUTH_SECRET` in Zeabur.
 
 ## Reporter CLI
 
