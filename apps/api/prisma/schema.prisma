@@ -1,0 +1,93 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String      @id
+  displayName String      @map("display_name")
+  createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+  devices     Device[]
+  workspaces  Workspace[]
+  sessions    Session[]
+  messages    Message[]
+
+  @@map("users")
+}
+
+model Device {
+  id         String      @id
+  userId     String      @map("user_id")
+  name       String
+  platform   String?
+  tokenHash  String      @unique @map("token_hash")
+  lastSeenAt DateTime    @default(now()) @map("last_seen_at") @db.Timestamptz(6)
+  createdAt  DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspaces Workspace[]
+  sessions   Session[]
+
+  @@index([userId])
+  @@map("devices")
+}
+
+model Workspace {
+  id        String    @id
+  userId    String    @map("user_id")
+  deviceId  String    @map("device_id")
+  type      String
+  name      String
+  pathHash  String?   @map("path_hash")
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  device    Device    @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  sessions  Session[]
+
+  @@index([deviceId])
+  @@map("workspaces")
+}
+
+model Session {
+  id                String      @id
+  userId            String      @map("user_id")
+  deviceId          String      @map("device_id")
+  workspaceId       String      @map("workspace_id")
+  tool              String
+  title             String
+  status            String
+  lastInputPreview  String?     @map("last_input_preview")
+  lastOutputPreview String?     @map("last_output_preview")
+  lastMessageAt     DateTime?   @map("last_message_at") @db.Timestamptz(6)
+  startedAt         DateTime    @default(now()) @map("started_at") @db.Timestamptz(6)
+  endedAt           DateTime?   @map("ended_at") @db.Timestamptz(6)
+  createdAt         DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  device            Device      @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  workspace         Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  messages          Message[]
+
+  @@index([workspaceId])
+  @@map("sessions")
+}
+
+model Message {
+  id        String   @id
+  userId    String   @map("user_id")
+  sessionId String   @map("session_id")
+  role      String
+  content   String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@map("messages")
+}

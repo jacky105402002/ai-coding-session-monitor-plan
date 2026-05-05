@@ -1,8 +1,5 @@
-import nextPlugin from "@next/eslint-plugin-next";
-
 export default [
-  nextPlugin.flatConfig.coreWebVitals,
   {
-    ignores: [".next/**", "node_modules/**", "next-env.d.ts"]
+    ignores: ["apps/api/dist/**", "apps/web/dist/**", "node_modules/**"]
   }
 ];

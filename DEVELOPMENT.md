@@ -1,6 +1,6 @@
 # 開發與部署規格
 
-這份文件定義 AI Coding Session Monitor 的正式 MVP 目標技術棧。第一版 repo baseline 先提供可部署雛形，後續 MVP 會依此規格整理成前後端分離架構。
+這份文件定義 AI Coding Session Monitor 的正式 MVP 技術棧。目前 repo 已整理為 `apps/web`、`apps/api`、`packages/shared` 的 monorepo 形狀，Zeabur 上仍以單一 Node.js service 部署，由 NestJS 同時提供 API 與前端靜態檔。
 
 ## 前端
 
@@ -58,7 +58,7 @@ DATABASE_SSL=true
 NODE_ENV=production
 ```
 
-## 建議正式 MVP 專案結構
+## 專案結構
 
 ```text
 .
@@ -67,7 +67,6 @@ NODE_ENV=production
 │  └─ api/                 # NestJS + TypeScript + Swagger + Prisma
 ├─ packages/
 │  └─ shared/              # shared types, API contracts, constants
-├─ prisma/                 # Prisma schema and migrations, if kept at repo root
 ├─ cli/                    # local reporter CLI
 ├─ docs/
 │  └─ product-brief.md
@@ -84,6 +83,12 @@ NODE_ENV=production
 - `POST /api/sessions/:sessionId/messages`
 - `GET /api/dashboard`
 
-## 第一版策略
+## 部署策略
 
-第一版先上 GitHub，讓 Zeabur 可以連動 repo。後續完成正式 MVP 後，直接覆蓋 `main`，Zeabur 會依 GitHub 更新自動重新部署。
+GitHub `main` 連動 Zeabur。每次完成 MVP 里程碑後推上 `main`，Zeabur 會自動 build 並重啟服務。
+
+目前部署仍採單一服務：
+
+- `npm run build`：Prisma generate、Vite build、NestJS build。
+- `npm run start`：初始化 PostgreSQL schema，啟動 NestJS。
+- NestJS 提供 `/api/*`、`/api/docs`，並 serve `apps/web/dist`。

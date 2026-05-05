@@ -2,9 +2,9 @@
 
 Mobile-friendly dashboard for monitoring local AI coding CLI sessions.
 
-This repository is prepared for GitHub -> Zeabur deployment as a Next.js service with PostgreSQL.
+This repository is prepared for GitHub -> Zeabur deployment as a single Node.js service. NestJS serves both the API and the Vite-built dashboard.
 
-## Target MVP Stack
+## Stack
 
 Frontend:
 
@@ -26,7 +26,20 @@ Data and deployment:
 - PostgreSQL
 - Zeabur for MVP, POC, personal projects, and early deployments
 
-The current first version is a deployable baseline. The formal MVP will be organized around the stack above. See `DEVELOPMENT.md`.
+See `DEVELOPMENT.md` for the longer architecture notes.
+
+## Project Structure
+
+```text
+.
+├─ apps/
+│  ├─ api/                 # NestJS + Swagger + Prisma
+│  └─ web/                 # React + Vite + Tailwind CSS
+├─ packages/
+│  └─ shared/              # shared dashboard/API types
+├─ cli/                    # local reporter CLI
+└─ docs/
+```
 
 ## Zeabur Environment Variables
 
@@ -41,15 +54,12 @@ Do not commit a real database connection string. Keep it in Zeabur environment v
 Optional:
 
 ```text
-DATABASE_SSL=true
 MONITOR_API_URL=https://your-web-service.zeabur.app
 ```
 
-Use `DATABASE_SSL=true` only if the database endpoint requires SSL.
-
 ## Build and Start
 
-The current baseline can use the native Node.js deployment flow:
+Zeabur can use the native Node.js deployment flow:
 
 ```bash
 npm install
@@ -57,13 +67,21 @@ npm run build
 npm run start
 ```
 
-`npm run start` runs `node scripts/init-db.mjs` first, then starts Next.js. The database tables are created automatically when `DATABASE_URL` is available.
+`npm run build` builds `apps/web` first, then `apps/api`.
+
+`npm run start` runs the compiled database initializer, then starts NestJS:
+
+```bash
+node apps/api/dist/apps/api/src/scripts/init-db.js && node apps/api/dist/apps/api/src/main.js
+```
+
+The database tables are created automatically when `DATABASE_URL` is available.
 
 The app listens on the port provided by the platform through `PORT`.
 
 ## Local Development
 
-Create a local `.env.local`:
+Create a local `.env` or set `DATABASE_URL` in your shell:
 
 ```text
 DATABASE_URL=postgresql://USER:PASSWORD@HOST:PORT/DATABASE
@@ -73,14 +91,32 @@ Then run:
 
 ```bash
 npm install
-npm run db:init
-npm run dev
+npm run build
+npm run start
 ```
 
 Open:
 
 ```text
 http://localhost:3000
+```
+
+For frontend-only iteration:
+
+```bash
+npm run dev:web
+```
+
+For API-only iteration:
+
+```bash
+npm run dev:api
+```
+
+Swagger docs are available at:
+
+```text
+http://localhost:3000/api/docs
 ```
 
 ## Reporter CLI
@@ -107,6 +143,14 @@ For production, point the CLI at the Zeabur service URL:
 
 ```bash
 npm run monitor -- init --api-url https://your-web-service.zeabur.app
+```
+
+In PowerShell, if `--` is hard to type cleanly, use:
+
+```powershell
+$env:MONITOR_API_URL="https://your-web-service.zeabur.app"
+node .\cli\monitor.mjs init
+node .\cli\monitor.mjs demo
 ```
 
 CLI config is stored in:
