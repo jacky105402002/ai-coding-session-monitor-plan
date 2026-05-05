@@ -156,15 +156,20 @@ function DashboardPage({ account, onLogout }: { account: Account; onLogout: () =
   const [data, setData] = useState<DashboardData>({ devices: [] });
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<string | null>(null);
 
   async function load() {
     try {
+      setRefreshing(true);
       setError(null);
       setData(await api<DashboardData>("/api/dashboard"));
+      setLastUpdatedAt(new Date().toISOString());
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Dashboard unavailable");
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }
 
@@ -203,10 +208,15 @@ function DashboardPage({ account, onLogout }: { account: Account; onLogout: () =
 
   return (
     <Shell account={account} onLogout={onLogout}>
-      <div className="mb-5 flex justify-end">
-        <Button onClick={() => void load()} title="Refresh">
-          <RefreshCw size={18} />
-          Refresh
+      <div className="mb-5 flex items-center justify-end gap-3">
+        {lastUpdatedAt ? (
+          <span className="text-sm font-bold text-muted">
+            Updated {relativeTime(lastUpdatedAt)}
+          </span>
+        ) : null}
+        <Button disabled={refreshing} onClick={() => void load()} title="Refresh">
+          <RefreshCw className={refreshing ? "animate-spin" : ""} size={18} />
+          {refreshing ? "Refreshing..." : "Refresh"}
         </Button>
       </div>
 
@@ -318,14 +328,22 @@ function AdminPage({ account, onLogout }: { account: Account; onLogout: () => vo
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [projects, setProjects] = useState<ProjectBinding[]>([]);
   const [message, setMessage] = useState<string | null>(null);
+  const [adminError, setAdminError] = useState<string | null>(null);
+  const [creatingAccount, setCreatingAccount] = useState(false);
+  const [creatingProject, setCreatingProject] = useState(false);
 
   async function load() {
-    const [accountResult, projectResult] = await Promise.all([
-      api<{ accounts: Account[] }>("/api/admin/accounts"),
-      api<{ projects: ProjectBinding[] }>("/api/admin/project-bindings")
-    ]);
-    setAccounts(accountResult.accounts);
-    setProjects(projectResult.projects);
+    try {
+      setAdminError(null);
+      const [accountResult, projectResult] = await Promise.all([
+        api<{ accounts: Account[] }>("/api/admin/accounts"),
+        api<{ projects: ProjectBinding[] }>("/api/admin/project-bindings")
+      ]);
+      setAccounts(accountResult.accounts);
+      setProjects(projectResult.projects);
+    } catch (loadError) {
+      setAdminError(loadError instanceof Error ? loadError.message : "Admin API unavailable");
+    }
   }
 
   useEffect(() => {
@@ -334,26 +352,48 @@ function AdminPage({ account, onLogout }: { account: Account; onLogout: () => vo
 
   async function createAccount(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    await api("/api/admin/accounts", {
-      method: "POST",
-      body: JSON.stringify(Object.fromEntries(form.entries()))
-    });
-    event.currentTarget.reset();
-    setMessage("Account created.");
-    await load();
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
+    try {
+      setCreatingAccount(true);
+      setAdminError(null);
+      setMessage(null);
+      await api("/api/admin/accounts", {
+        method: "POST",
+        body: JSON.stringify(Object.fromEntries(form.entries()))
+      });
+      formElement.reset();
+      setMessage("Account created.");
+      await load();
+    } catch (createError) {
+      setAdminError(createError instanceof Error ? createError.message : "Create account failed");
+    } finally {
+      setCreatingAccount(false);
+    }
   }
 
   async function createProject(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    await api("/api/admin/project-bindings", {
-      method: "POST",
-      body: JSON.stringify(Object.fromEntries(form.entries()))
-    });
-    event.currentTarget.reset();
-    setMessage("Project binding created.");
-    await load();
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
+    try {
+      setCreatingProject(true);
+      setAdminError(null);
+      setMessage(null);
+      await api("/api/admin/project-bindings", {
+        method: "POST",
+        body: JSON.stringify(Object.fromEntries(form.entries()))
+      });
+      formElement.reset();
+      setMessage("Project binding created.");
+      await load();
+    } catch (createError) {
+      setAdminError(
+        createError instanceof Error ? createError.message : "Create project binding failed"
+      );
+    } finally {
+      setCreatingProject(false);
+    }
   }
 
   function commandFor(project: ProjectBinding) {
@@ -366,7 +406,10 @@ function AdminPage({ account, onLogout }: { account: Account; onLogout: () => vo
         <a className="text-sm font-bold underline" href="/">
           Back to dashboard
         </a>
-        {message ? <p className="text-sm font-bold text-emerald-700">{message}</p> : null}
+        <div className="text-right">
+          {message ? <p className="text-sm font-bold text-emerald-700">{message}</p> : null}
+          {adminError ? <p className="text-sm font-bold text-red-700">{adminError}</p> : null}
+        </div>
       </div>
 
       <section className="grid gap-4 lg:grid-cols-2">
@@ -379,7 +422,9 @@ function AdminPage({ account, onLogout }: { account: Account; onLogout: () => vo
               <option value="user">user</option>
               <option value="admin">admin</option>
             </select>
-            <Button type="submit">Create Account</Button>
+            <Button disabled={creatingAccount} type="submit">
+              {creatingAccount ? "Creating..." : "Create Account"}
+            </Button>
           </form>
           <div className="grid gap-2">
             {accounts.map((item) => (
@@ -397,7 +442,9 @@ function AdminPage({ account, onLogout }: { account: Account; onLogout: () => vo
             <input className="h-10 rounded-md border border-border px-3" name="projectId" placeholder="project id, e.g. customer-api" />
             <input className="h-10 rounded-md border border-border px-3" name="name" placeholder="display name" />
             <input className="h-10 rounded-md border border-border px-3" name="description" placeholder="description" />
-            <Button type="submit">Create Project Binding</Button>
+            <Button disabled={creatingProject} type="submit">
+              {creatingProject ? "Creating..." : "Create Project Binding"}
+            </Button>
           </form>
           <div className="grid gap-3">
             {projects.map((project) => (

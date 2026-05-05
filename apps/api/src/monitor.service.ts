@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 import type {
   DashboardData,
   MessageRole,
@@ -282,16 +283,23 @@ export class MonitorService {
       throw new Error("Project ID and name are required");
     }
 
-    return this.prisma.projectBinding.create({
-      data: {
-        id: makeId("prj"),
-        projectId,
-        name,
-        workspaceName: projectId,
-        description: input.description?.trim() || null,
-        createdBy: accountId
+    try {
+      return await this.prisma.projectBinding.create({
+        data: {
+          id: makeId("prj"),
+          projectId,
+          name,
+          workspaceName: projectId,
+          description: input.description?.trim() || null,
+          createdBy: accountId
+        }
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+        throw new Error(`Project ID already exists: ${projectId}`);
       }
-    });
+      throw error;
+    }
   }
 
   async getDashboardData(): Promise<DashboardData> {
