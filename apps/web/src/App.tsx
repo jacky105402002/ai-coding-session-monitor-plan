@@ -80,11 +80,11 @@ function projectSummaryFor(sessions: DashboardSession[]) {
     sessions.filter((session) => session.status === "ai_loading")
   );
 
-  if (latestErrorSession) {
+  if (latestSession?.status === "error") {
     return {
       label: "Needs Attention",
       tone: "red" as const,
-      hint: "Latest error needs review.",
+      hint: "Latest session ended with an error.",
       latestSession,
       latestInputSession,
       latestOutputSession,
@@ -94,11 +94,11 @@ function projectSummaryFor(sessions: DashboardSession[]) {
     };
   }
 
-  if (activeSession) {
+  if (latestSession?.status === "ai_loading") {
     return {
       label: "AI Running",
       tone: "blue" as const,
-      hint: "AI tool is currently working.",
+      hint: "Latest session is currently running.",
       latestSession,
       latestInputSession,
       latestOutputSession,
@@ -108,11 +108,11 @@ function projectSummaryFor(sessions: DashboardSession[]) {
     };
   }
 
-  if (needsUserControl) {
+  if (latestSession && ["idle", "waiting_user"].includes(latestSession.status)) {
     return {
       label: "Needs User",
       tone: "amber" as const,
-      hint: "A session is waiting for user input or review.",
+      hint: "Latest session is waiting for user input or review.",
       latestSession,
       latestInputSession,
       latestOutputSession,
