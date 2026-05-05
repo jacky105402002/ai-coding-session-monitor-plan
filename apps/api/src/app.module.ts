@@ -1,6 +1,4 @@
 import { Module } from "@nestjs/common";
-import { ServeStaticModule } from "@nestjs/serve-static";
-import { join } from "node:path";
 
 import {
   AdminController,
@@ -16,12 +14,7 @@ import { MonitorService } from "./monitor.service.js";
 import { PrismaService } from "./prisma.service.js";
 
 @Module({
-  imports: [
-    ServeStaticModule.forRoot({
-      rootPath: join(process.cwd(), "apps", "web", "dist"),
-      exclude: ["/api/(.*)"]
-    })
-  ],
+  imports: [],
   controllers: [
     DashboardController,
     AuthController,
