@@ -91,6 +91,34 @@ Admin and dashboard responsibilities are intentionally split:
 - Hidden dashboard projects are stored in browser localStorage for this POC.
 - Deleting a project binding in admin removes it from the connected project list.
 
+## Current Progress
+
+Last verified deployment flow: GitHub `main` -> Zeabur Node.js service -> PostgreSQL.
+
+Completed and tested:
+
+- Login-protected dashboard and `/admin` console.
+- Admin project bindings and frontend account creation.
+- Dashboard visible project picker and per-browser hide/show state.
+- Project cards with project state, latest question, latest AI reply, and latest error.
+- Session cards with preview input/output and full `Show Messages` expansion.
+- Dashboard session deletion with refresh after delete.
+- CLI device registration, heartbeat, session start/input/output/done/error.
+- `monitor codex` wrapper that stores command and final stdout/stderr transcript as messages.
+
+Known behavior:
+
+- Dashboard project matching depends on CLI `--workspace` matching the admin project id.
+- Current dashboard visibility preferences are stored in browser localStorage.
+- Codex Desktop conversations are not automatically captured yet; the current POC captures data sent through the CLI or `monitor codex`.
+
+Next recommended work:
+
+- Improve Admin copy commands so they include the Zeabur URL and the exact project id.
+- Add clearer dashboard hints when `--workspace` does not match a visible project.
+- Add better Codex wrapper modes for non-interactive prompts and richer status transitions.
+- Persist dashboard visibility preferences per account instead of localStorage.
+
 The dashboard should gradually evolve into a project control panel that can show:
 
 - project health summary

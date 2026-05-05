@@ -339,10 +339,15 @@ Included:
 - Local reporter CLI prototype
 - Project/workspace grouping by local folder
 - Token-protected CLI clearing for current session, current workspace, or current device
+- Login-protected project dashboard with visible project controls
+- Full session message expansion
+- Dashboard session deletion
+- Project summary cards for state, latest question, latest AI reply, and latest error
+- Codex wrapper transcript capture for final stdout/stderr
 
 Not included:
 
-- Full shell wrapping
+- Automatic capture of the current Codex Desktop conversation
 - Terminal streaming
 - Session replay
 - Billing
@@ -359,3 +364,22 @@ The dashboard already groups sessions by device and workspace. The next POC proj
 - latest error
 - whether user control/approval is needed
 - session owner and active tool
+
+## Current Handoff Notes
+
+Current tested GitHub/Zeabur milestone:
+
+```text
+b63650c feat: delete sessions from dashboard
+```
+
+Tested user flow:
+
+- Create/select a project in `/admin`.
+- Add that project to `Visible Projects` on `/`.
+- Use CLI commands with `--workspace` equal to the admin project id.
+- Verify project summaries, full session messages, Codex wrapper output, and dashboard deletion.
+
+Important next step:
+
+- Improve `/admin` copy commands so a new machine can copy a complete PowerShell command with `MONITOR_API_URL` and the correct `--workspace` project id.
