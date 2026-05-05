@@ -118,6 +118,12 @@ export class AdminController {
       throw new BadRequestException(error instanceof Error ? error.message : "Invalid project");
     }
   }
+
+  @Delete("project-bindings/:projectId")
+  async deleteProjectBinding(@Req() request: Request, @Param("projectId") projectId: string) {
+    await requireAccount(request, this.prisma, "admin");
+    return this.monitor.deleteProjectBinding(projectId);
+  }
 }
 
 @ApiTags("devices")

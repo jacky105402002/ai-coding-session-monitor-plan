@@ -302,6 +302,20 @@ export class MonitorService {
     }
   }
 
+  async deleteProjectBinding(projectId: string) {
+    const existing = await this.prisma.projectBinding.findUnique({
+      where: { projectId },
+      select: { projectId: true }
+    });
+
+    if (!existing) {
+      throw new NotFoundException("Project binding not found");
+    }
+
+    await this.prisma.projectBinding.delete({ where: { projectId } });
+    return { deletedProjectId: projectId };
+  }
+
   async getDashboardData(): Promise<DashboardData> {
     const devices = await this.prisma.device.findMany({
       orderBy: { lastSeenAt: "desc" },

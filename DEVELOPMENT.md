@@ -102,6 +102,8 @@ Current behavior:
 - creates a session for the current project/workspace
 - marks the session as `ai_loading`
 - launches the local `codex` binary interactively
+- sends heartbeat/status updates while Codex is running
+- syncs a short stdout/stderr preview to the dashboard
 - marks the session as `done` when Codex exits with code 0
 - marks the session as `error` when Codex exits with a non-zero code
 

@@ -331,6 +331,7 @@ function AdminPage({ account, onLogout }: { account: Account; onLogout: () => vo
   const [adminError, setAdminError] = useState<string | null>(null);
   const [creatingAccount, setCreatingAccount] = useState(false);
   const [creatingProject, setCreatingProject] = useState(false);
+  const [deletingProjectId, setDeletingProjectId] = useState<string | null>(null);
 
   async function load() {
     try {
@@ -396,6 +397,30 @@ function AdminPage({ account, onLogout }: { account: Account; onLogout: () => vo
     }
   }
 
+  async function deleteProject(projectId: string) {
+    const confirmed = window.confirm(`Delete project binding "${projectId}"?`);
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setDeletingProjectId(projectId);
+      setAdminError(null);
+      setMessage(null);
+      await api(`/api/admin/project-bindings/${encodeURIComponent(projectId)}`, {
+        method: "DELETE"
+      });
+      setMessage("Project binding deleted.");
+      await load();
+    } catch (deleteError) {
+      setAdminError(
+        deleteError instanceof Error ? deleteError.message : "Delete project binding failed"
+      );
+    } finally {
+      setDeletingProjectId(null);
+    }
+  }
+
   function commandFor(project: ProjectBinding) {
     return `node D:\\code\\codex\\ai-coding-session-monitor-plan\\cli\\monitor.mjs start --workspace ${project.projectId} --title "New session"`;
   }
@@ -453,12 +478,20 @@ function AdminPage({ account, onLogout }: { account: Account; onLogout: () => vo
                 <p className="text-sm text-muted">{project.projectId}</p>
                 <div className="mt-3 grid gap-2 rounded-md bg-neutral-100 p-3 text-sm">
                   <code className="break-all">{commandFor(project)}</code>
-                  <Button
-                    onClick={() => void navigator.clipboard.writeText(commandFor(project))}
-                  >
-                    <Copy size={16} />
-                    Copy command
-                  </Button>
+                  <div className="grid grid-cols-2 gap-2 max-sm:grid-cols-1">
+                    <Button
+                      onClick={() => void navigator.clipboard.writeText(commandFor(project))}
+                    >
+                      <Copy size={16} />
+                      Copy command
+                    </Button>
+                    <Button
+                      disabled={deletingProjectId === project.projectId}
+                      onClick={() => void deleteProject(project.projectId)}
+                    >
+                      {deletingProjectId === project.projectId ? "Deleting..." : "Delete"}
+                    </Button>
+                  </div>
                 </div>
               </div>
             ))}

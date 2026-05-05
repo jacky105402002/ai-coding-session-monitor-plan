@@ -140,6 +140,7 @@ Admin console features:
 
 - create frontend user accounts
 - create project bindings
+- delete project bindings
 - copy project binding commands for local project folders
 
 Do not commit plaintext passwords. For production, set a strong `AUTH_SECRET` in Zeabur.
@@ -196,6 +197,7 @@ npm run monitor -- codex --title "Explain repo" -- --help
 ```
 
 The wrapper keeps Codex interactive in your terminal. The dashboard receives session start, running, done, and error status updates.
+While Codex is running, the wrapper sends heartbeat/status updates and a short stdout/stderr preview.
 
 For production, point the CLI at the Zeabur service URL:
 

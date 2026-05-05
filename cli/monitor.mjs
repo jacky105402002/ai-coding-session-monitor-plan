@@ -43,6 +43,14 @@ function apiUrl() {
   return argValue("--api-url", process.env.MONITOR_API_URL || "http://localhost:3000").replace(/\/$/, "");
 }
 
+function preview(value, maxLength = 300) {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (!normalized) {
+    return "";
+  }
+  return normalized.length > maxLength ? `${normalized.slice(-maxLength + 3)}...` : normalized;
+}
+
 async function readJson(path) {
   try {
     return JSON.parse(await readFile(path, "utf8"));
@@ -304,24 +312,74 @@ async function runCodex() {
 
   console.log(`Launching ${codexBin}${codexArgs.length ? ` ${codexArgs.join(" ")}` : ""}`);
 
+  let latestOutput = "";
+  let latestError = "";
+  let syncRunning = false;
+  let lastSyncAt = 0;
+
+  async function syncProgress(force = false) {
+    const now = Date.now();
+    if (syncRunning || (!force && now - lastSyncAt < 2500)) {
+      return;
+    }
+
+    syncRunning = true;
+    lastSyncAt = now;
+    try {
+      await heartbeat();
+      await updateStatus("ai_loading", {
+        lastInputPreview: codexArgs.length
+          ? `codex ${codexArgs.join(" ")}`
+          : "codex interactive session running",
+        lastOutputPreview: preview(latestError || latestOutput || "Codex CLI is running")
+      });
+    } catch (syncError) {
+      console.error(syncError instanceof Error ? syncError.message : syncError);
+    } finally {
+      syncRunning = false;
+    }
+  }
+
   const exitCode = await new Promise((resolve, reject) => {
     const child = spawn(codexBin, codexArgs, {
       cwd: process.cwd(),
       env: process.env,
       shell: process.platform === "win32",
-      stdio: "inherit"
+      stdio: ["inherit", "pipe", "pipe"]
+    });
+    const progressTimer = setInterval(() => void syncProgress(true), 10_000);
+
+    child.stdout?.on("data", (chunk) => {
+      const text = chunk.toString();
+      latestOutput = `${latestOutput}${text}`.slice(-2000);
+      process.stdout.write(chunk);
+      void syncProgress();
     });
 
-    child.on("error", reject);
-    child.on("close", (code) => resolve(code ?? 0));
+    child.stderr?.on("data", (chunk) => {
+      const text = chunk.toString();
+      latestError = `${latestError}${text}`.slice(-2000);
+      process.stderr.write(chunk);
+      void syncProgress();
+    });
+
+    child.on("error", (childError) => {
+      clearInterval(progressTimer);
+      reject(childError);
+    });
+    child.on("close", (code) => {
+      clearInterval(progressTimer);
+      resolve(code ?? 0);
+    });
   });
 
   if (exitCode === 0) {
+    const summary = preview(latestOutput) || "Codex CLI exited successfully.";
     await postMessage("status", "Codex CLI exited successfully.");
-    await updateStatus("done", { lastOutputPreview: "Codex CLI exited successfully." });
+    await updateStatus("done", { lastOutputPreview: summary });
     console.log("Codex session completed.");
   } else {
-    const summary = `Codex CLI exited with code ${exitCode}.`;
+    const summary = preview(latestError || latestOutput) || `Codex CLI exited with code ${exitCode}.`;
     await postMessage("status", summary);
     await updateStatus("error", { lastOutputPreview: summary });
     console.error(summary);
