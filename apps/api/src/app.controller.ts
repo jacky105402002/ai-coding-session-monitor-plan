@@ -234,7 +234,14 @@ export class SessionsController {
   @Delete(":sessionId")
   @ApiBearerAuth()
   async deleteSession(@Req() request: Request, @Param("sessionId") sessionId: string) {
-    const authDevice = await requireDevice(request, this.prisma);
-    return this.monitor.deleteSession(sessionId, authDevice);
+    const authHeader = request.headers.authorization;
+
+    if (authHeader) {
+      const authDevice = await requireDevice(request, this.prisma);
+      return this.monitor.deleteSession(sessionId, authDevice);
+    }
+
+    await requireAccount(request, this.prisma);
+    return this.monitor.deleteSessionFromDashboard(sessionId);
   }
 }

@@ -224,6 +224,22 @@ export class MonitorService {
     return { deletedSessions: 1 };
   }
 
+  async deleteSessionFromDashboard(sessionId: string) {
+    const session = await this.prisma.session.findUnique({
+      where: { id: sessionId },
+      select: { id: true }
+    });
+
+    if (!session) {
+      throw new NotFoundException("Session not found");
+    }
+
+    await this.prisma.message.deleteMany({ where: { sessionId } });
+    await this.prisma.session.delete({ where: { id: sessionId } });
+
+    return { deletedSessions: 1 };
+  }
+
   async listSessionMessages(sessionId: string) {
     const session = await this.prisma.session.findUnique({
       where: { id: sessionId },

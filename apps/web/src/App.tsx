@@ -276,6 +276,7 @@ function DashboardPage({ account, onLogout }: { account: Account; onLogout: () =
   const [messageErrorBySessionId, setMessageErrorBySessionId] = useState<Record<string, string>>(
     {}
   );
+  const [deletingSessionId, setDeletingSessionId] = useState<string | null>(null);
 
   function saveVisibleProjects(nextIds: string[]) {
     setVisibleProjectIds(nextIds);
@@ -404,6 +405,32 @@ function DashboardPage({ account, onLogout }: { account: Account; onLogout: () =
       }));
     } finally {
       setMessageLoadingSessionId(null);
+    }
+  }
+
+  async function deleteSession(sessionId: string, title: string) {
+    const confirmed = window.confirm(`Delete session "${title}"?`);
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setDeletingSessionId(sessionId);
+      setError(null);
+      await api(`/api/sessions/${encodeURIComponent(sessionId)}`, {
+        method: "DELETE"
+      });
+      setExpandedSessionIds((current) => current.filter((item) => item !== sessionId));
+      setMessagesBySessionId((current) => {
+        const next = { ...current };
+        delete next[sessionId];
+        return next;
+      });
+      await load();
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : "Delete session failed");
+    } finally {
+      setDeletingSessionId(null);
     }
   }
 
@@ -599,9 +626,20 @@ function DashboardPage({ account, onLogout }: { account: Account; onLogout: () =
                               </h4>
                               <p className="mt-1 text-sm text-muted">{session.tool}</p>
                             </div>
-                            <Badge tone={statusTones[session.status]}>
-                              {statusLabels[session.status]}
-                            </Badge>
+                            <div className="flex items-center gap-2">
+                              <Badge tone={statusTones[session.status]}>
+                                {statusLabels[session.status]}
+                              </Badge>
+                              <button
+                                className="inline-flex size-8 items-center justify-center rounded-full bg-neutral-100 hover:bg-neutral-200 disabled:opacity-60"
+                                disabled={deletingSessionId === session.id}
+                                onClick={() => void deleteSession(session.id, session.title)}
+                                title="Delete session"
+                                type="button"
+                              >
+                                <X size={16} />
+                              </button>
+                            </div>
                           </div>
                           <div className="grid gap-3">
                             <div className="min-h-20 rounded-lg border border-border bg-card p-3">
