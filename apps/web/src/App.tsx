@@ -1,6 +1,6 @@
 import { Copy, LogOut, Plus, RefreshCw, Settings, TerminalSquare, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { DashboardData, SessionStatus } from "@monitor/shared";
+import type { DashboardData, DashboardSession, SessionStatus } from "@monitor/shared";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -46,6 +46,94 @@ const statusTones: Record<SessionStatus, "neutral" | "green" | "blue" | "amber" 
   error: "red",
   offline: "neutral"
 };
+
+function latestByUpdatedAt(sessions: DashboardSession[]) {
+  return [...sessions].sort(
+    (first, second) => new Date(second.updatedAt).getTime() - new Date(first.updatedAt).getTime()
+  )[0];
+}
+
+function latestWithPreview(
+  sessions: DashboardSession[],
+  previewKey: "lastInputPreview" | "lastOutputPreview"
+) {
+  return [...sessions]
+    .filter((session) => Boolean(session[previewKey]))
+    .sort(
+      (first, second) =>
+        new Date(second.lastMessageAt ?? second.updatedAt).getTime() -
+        new Date(first.lastMessageAt ?? first.updatedAt).getTime()
+    )[0];
+}
+
+function projectSummaryFor(sessions: DashboardSession[]) {
+  const latestSession = latestByUpdatedAt(sessions);
+  const latestInputSession = latestWithPreview(sessions, "lastInputPreview");
+  const latestOutputSession = latestWithPreview(sessions, "lastOutputPreview");
+  const latestErrorSession = latestByUpdatedAt(
+    sessions.filter((session) => session.status === "error")
+  );
+  const needsUserControl = sessions.some((session) =>
+    ["idle", "waiting_user"].includes(session.status)
+  );
+  const activeSession = latestByUpdatedAt(
+    sessions.filter((session) => session.status === "ai_loading")
+  );
+
+  if (latestErrorSession) {
+    return {
+      label: "Needs Attention",
+      tone: "red" as const,
+      hint: "Latest error needs review.",
+      latestSession,
+      latestInputSession,
+      latestOutputSession,
+      latestErrorSession,
+      needsUserControl,
+      activeSession
+    };
+  }
+
+  if (activeSession) {
+    return {
+      label: "AI Running",
+      tone: "blue" as const,
+      hint: "AI tool is currently working.",
+      latestSession,
+      latestInputSession,
+      latestOutputSession,
+      latestErrorSession,
+      needsUserControl,
+      activeSession
+    };
+  }
+
+  if (needsUserControl) {
+    return {
+      label: "Needs User",
+      tone: "amber" as const,
+      hint: "A session is waiting for user input or review.",
+      latestSession,
+      latestInputSession,
+      latestOutputSession,
+      latestErrorSession,
+      needsUserControl,
+      activeSession
+    };
+  }
+
+  return {
+    label: sessions.length > 0 ? "Healthy" : "No Sessions",
+    tone: sessions.length > 0 ? ("green" as const) : ("neutral" as const),
+    hint: sessions.length > 0 ? "Latest sessions finished cleanly." : "Waiting for monitor data.",
+    latestSession,
+    latestInputSession,
+    latestOutputSession,
+    latestErrorSession,
+    needsUserControl,
+    activeSession
+  };
+}
 
 async function api<T>(path: string, options: RequestInit = {}) {
   const response = await fetch(path, {
@@ -248,8 +336,9 @@ function DashboardPage({ account, onLogout }: { account: Account; onLogout: () =
         const active = sessions.filter((session) =>
           ["ai_loading", "waiting_user", "idle"].includes(session.status)
         ).length;
+        const summary = projectSummaryFor(sessions);
 
-        return { project, devices, sessions, active };
+        return { project, devices, sessions, active, summary };
       }),
     [data.devices, visibleProjects]
   );
@@ -428,14 +517,51 @@ function DashboardPage({ account, onLogout }: { account: Account; onLogout: () =
                 <h3 className="text-2xl font-black">{projectView.project.name}</h3>
                 <p className="mt-1 text-sm text-muted">{projectView.project.projectId}</p>
               </div>
-              <button
-                className="inline-flex size-9 items-center justify-center rounded-full bg-neutral-100 hover:bg-neutral-200"
-                onClick={() => hideVisibleProject(projectView.project.projectId)}
-                title="Hide project"
-                type="button"
-              >
-                <X size={18} />
-              </button>
+              <div className="flex items-center gap-2">
+                <Badge tone={projectView.summary.tone}>{projectView.summary.label}</Badge>
+                <button
+                  className="inline-flex size-9 items-center justify-center rounded-full bg-neutral-100 hover:bg-neutral-200"
+                  onClick={() => hideVisibleProject(projectView.project.projectId)}
+                  title="Hide project"
+                  type="button"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+
+            <div className="mb-4 grid grid-cols-4 gap-3 max-lg:grid-cols-2 max-sm:grid-cols-1">
+              <div className="rounded-lg border border-border bg-neutral-50 p-3">
+                <span className="mb-1 block text-xs font-extrabold text-muted">
+                  Project State
+                </span>
+                <strong className="block text-base">{projectView.summary.label}</strong>
+                <p className="mt-1 text-sm text-muted">{projectView.summary.hint}</p>
+              </div>
+              <div className="rounded-lg border border-border bg-neutral-50 p-3">
+                <span className="mb-1 block text-xs font-extrabold text-muted">
+                  Latest Question
+                </span>
+                <p className="overflow-wrap-anywhere text-sm leading-relaxed">
+                  {projectView.summary.latestInputSession?.lastInputPreview ?? "No question yet"}
+                </p>
+              </div>
+              <div className="rounded-lg border border-border bg-neutral-50 p-3">
+                <span className="mb-1 block text-xs font-extrabold text-muted">
+                  Latest AI Reply
+                </span>
+                <p className="overflow-wrap-anywhere text-sm leading-relaxed">
+                  {projectView.summary.latestOutputSession?.lastOutputPreview ?? "No reply yet"}
+                </p>
+              </div>
+              <div className="rounded-lg border border-border bg-neutral-50 p-3">
+                <span className="mb-1 block text-xs font-extrabold text-muted">
+                  Latest Error
+                </span>
+                <p className="overflow-wrap-anywhere text-sm leading-relaxed">
+                  {projectView.summary.latestErrorSession?.lastOutputPreview ?? "No error"}
+                </p>
+              </div>
             </div>
 
             {projectView.devices.length === 0 ? (

@@ -149,6 +149,7 @@ Dashboard project visibility:
 - The dashboard `Visible Projects` control adds connected projects to the current view.
 - Each visible project can be hidden with the `X` button without deleting the admin binding.
 - Visibility is stored per browser in localStorage for this POC.
+- Each visible project shows a compact summary: project state, latest question, latest AI reply, and latest error.
 
 Do not commit plaintext passwords. For production, set a strong `AUTH_SECRET` in Zeabur.
 
