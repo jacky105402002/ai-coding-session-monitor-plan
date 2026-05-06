@@ -112,6 +112,30 @@ Known behavior:
 - Current dashboard visibility preferences are stored in browser localStorage.
 - Codex Desktop conversations are not automatically captured yet; the current POC captures data sent through the CLI or `monitor codex`.
 
+## Product Decision Point
+
+The current POC proves the reporting pipeline, not full Codex Desktop observability.
+
+Useful today:
+
+- Manual session reporting through `monitor start/input/output/done/error`.
+- Codex CLI reporting when the user starts work through `monitor codex`.
+- Project dashboard summaries for sessions that were explicitly reported.
+
+Not solved yet:
+
+- Automatic capture of the active Codex Desktop conversation.
+- Automatic capture of Codex Desktop internal state such as tool execution, waiting-for-user state, file edits, or approval prompts.
+- Reliable session replay for work done directly inside Codex Desktop.
+
+This matters because most target users may prefer Codex Desktop over terminal-first Codex CLI. If Codex Desktop cannot provide a stable local event/log interface, the product may be less useful as an automatic monitor and should be repositioned as one of:
+
+- a wrapper-first workflow for teams willing to launch Codex through `monitor codex`;
+- a manual project status reporter for AI coding sessions;
+- or a dashboard POC that waits for a stable Codex Desktop integration point before deeper investment.
+
+Before continuing major feature work, evaluate whether Codex Desktop exposes a reliable local session/log/app-server interface that can be monitored without brittle file scraping.
+
 Next recommended work:
 
 - Improve Admin copy commands so they include the Zeabur URL and the exact project id.

@@ -348,6 +348,7 @@ Included:
 Not included:
 
 - Automatic capture of the current Codex Desktop conversation
+- Automatic capture of Codex Desktop tool execution, approval prompts, file edits, or waiting-user state
 - Terminal streaming
 - Session replay
 - Billing
@@ -382,4 +383,18 @@ Tested user flow:
 
 Important next step:
 
-- Improve `/admin` copy commands so a new machine can copy a complete PowerShell command with `MONITOR_API_URL` and the correct `--workspace` project id.
+- Decide whether the product should continue as a wrapper-first monitor or pause until a reliable Codex Desktop integration point is available.
+- If continuing wrapper-first, improve `/admin` copy commands so a new machine can copy a complete PowerShell command with `MONITOR_API_URL` and the correct `--workspace` project id.
+
+## Codex Desktop Integration Decision
+
+Current state:
+
+- The app can monitor sessions reported by the local CLI.
+- The app can monitor Codex CLI sessions launched through `monitor codex`.
+- The app cannot automatically read the active Codex Desktop conversation or internal state.
+
+Decision needed before deeper MVP work:
+
+- If the target workflow is mostly Codex Desktop, first research whether Codex Desktop exposes stable local logs, session APIs, or app-server events.
+- If no stable integration exists, this project is best treated as a wrapper-first dashboard POC rather than a complete Codex Desktop monitor.
